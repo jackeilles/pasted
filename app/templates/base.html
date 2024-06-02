@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="author" content="pasted.sh">
+    <meta name="keywords" content="pasted.sh, pasted, pastebin, paste, file, file-hosting, hosting, upload, share, text, code, snippet, secure, private, anonymous, code paste, xygt">
+    <meta name="description" content="An anonymous, private, and secure temporary pastebin and file-hosting platform.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+    <title>pasted.sh - {{ title }}</title>
+</head>
+<body class="bg-[#343a40]">
+    {% block content %}{% endblock %}
+</body>
+</html>
