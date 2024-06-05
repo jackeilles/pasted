@@ -1,10 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="w-full max-w-screen-md mx-auto px-4">
+<div class="w-full max-w-screen-md mx-auto p-4">
     <img class="mx-auto bg-[#212529] px-8 m-4 rounded-lg" src="{{ url_for('static', filename='img/pastedlogo.png') }}" alt="pasted.sh logo" width="500">
     <h1 class="text-center text-2xl text-white">An anonymous, private, secure, and temporary pastebin and file-hosting service.</h1>
+    {% if user.is_authenticated %}
+    <p class="text-white my-2">Welcome, <a class="bg-slate-700" href="{{ url_for('profile') }}">{{ user.username }}</a>.</p>
+    {% else %}
     <a href="{{ url_for('login') }}" class="block w-full max-w-[192px] text-center mx-auto mt-4 bg-[#007bff] hover:bg-[#0056b3] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Login / Register</a>
+    {% endif %}
 </div>
 <hr class="my-8 max-w-lg mx-auto">
 <div class="w-full max-w-screen-md mx-auto px-4">
@@ -14,7 +18,7 @@
     <p class="text-white my-2">If you'd like to paste a file, simply do so like</p>
     <code class="text-white bg-black p-2 my-2 rounded-lg">curl -F'data=@/path/to/file' https://pasted.sh</code>
     <p class="text-white my-2">or to pipe a command output directly to pasted.sh.</p>
-    <code class="text-white bg-black p-2 my-2 rounded-lg">curl -F'data=@-' https://pasted.sh</code>
+    <code class="text-white bg-black p-2 my-2 rounded-lg">cat main.c | curl -F'data=@-' https://pasted.sh</code>
     <br>
     <p class="text-white my-4">pasted.sh will send back a link to your file along with an X-Token header for file-management and an X-Expires header containing a Unix Timestamp of when the file will be deleted.</p>
     <div class="mx-auto w-full max-w-lg my-2">
@@ -22,4 +26,8 @@
         <p class="my-4"><span class="bg-yellow-600 text-white rounded-lg p-2 mx-2">X-Token: </span><code class="text-white bg-black p-2 my-2 rounded-lg">{{ hex_rand }}</code></p>
         <p class="my-4"><span class="bg-red-600 text-white rounded-lg p-2 mx-2">X-Expires: </span><code class="text-white bg-black p-2 my-2 rounded-lg">{{ timestamp }}</code></p>
     </div>
+    <h2 class="text-center text-xl text-white">Extra info</h2>
+    <p class="text-white my-2">To see more advanced usage of pasted.sh, please refer to the <a class="underline hover:text-gray-300"href="{{ url_for('documentation') }}">Documentation</a>.</p>
+    <p class="text-white my-2">This documentation covers user authentication, filenames, file management and more. All endpoints on this domain will also be covered.</p>
+</div>
 {% endblock %}

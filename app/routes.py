@@ -4,7 +4,7 @@ from flask import render_template, redirect, url_for
 import os
 import datetime
 
-@app.route('/')
+@app.route('/', methods=["GET", "POST"])
 def index():
     # Initial data for the index page
     hex_rand: str = os.urandom(15).hex()
@@ -12,15 +12,19 @@ def index():
 
     return render_template('index.html', title='Anonymous, Private, Secure, and Temporary.', hex_rand=hex_rand, timestamp=timestamp)
 
-@app.route('/login')
+@app.route('/login', methods=["GET", "POST"])
 def login():
     login_form = LoginForm()
-    registration_form = RegistrationForm()
+    register_form = RegistrationForm()
 
     if login_form.validate_on_submit():
         return redirect(url_for('index'))
     
-    if registration_form.validate_on_submit():
+    if register_form.validate_on_submit():
         return redirect(url_for('index'))
     
-    return render_template('login.html', title='Login', login_form=login_form, registration_form=registration_form)
+    return render_template('login.html', title='Login', login_form=login_form, register_form=register_form)
+
+@app.route('/documentation')
+def documentation():
+    return render_template('documentation.html', title='Documentation')
