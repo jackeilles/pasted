@@ -1,6 +1,6 @@
 from typing import Optional
 import sqlalchemy as sa
-from sqlalchemy.orm import so 
+import sqlalchemy.orm as so
 from app import db
 from flask_login import UserMixin
 from app import login

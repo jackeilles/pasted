@@ -5,3 +5,4 @@ flask-login # User session management
 flask-wtf # Form handling
 flask-bcrypt # Password hashing
 waitress # WSGI server for production
+flask_migrate # DB Migration
