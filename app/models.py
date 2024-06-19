@@ -12,6 +12,15 @@ class User(UserMixin, db.Model):
     username: so.Mapped[str] = so.mapped_column(sa.String(20), index=True, unique=True)
     password_hash = so.mapped_column(sa.String(128))
 
+    def __repr__(self):
+        return f'<User {self.username}>'#
+    
+    def pass_set(self, password: str) -> None:
+        self.password_hash = generate_password_hash(password)
+
+    def pass_check(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
 class Files(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     filename: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)

@@ -1,3 +1,7 @@
+"""
+Init File for pasted.sh app.
+"""
+
 from flask import Flask
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
