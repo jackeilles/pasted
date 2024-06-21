@@ -31,7 +31,7 @@ def index():
             data: str = fdata['file'] # Just toss the stuff from the form into data instead
             mime: str = "text/plain"
 
-        
+        # We will check whether the MIME type of the file is disallowed.
 
 @app.route('/login', methods=["GET", "POST"])
 def login():

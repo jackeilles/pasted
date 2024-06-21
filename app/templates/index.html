@@ -26,6 +26,7 @@
         <p class="my-4"><span class="bg-yellow-600 text-white rounded-lg p-2 mx-2">X-Token: </span><code class="text-white bg-black p-2 my-2 rounded-lg">{{ hex_rand }}</code></p>
         <p class="my-4"><span class="bg-red-600 text-white rounded-lg p-2 mx-2">X-Expires: </span><code class="text-white bg-black p-2 my-2 rounded-lg">{{ timestamp }}</code></p>
     </div>
+    <p class="text-white my-2">You can use cURL with -i to view the response headers and take your X-Expires and X-Token. You can also manage your files through the website.</p>
     <h2 class="text-center text-xl text-white">Extra info</h2>
     <p class="text-white my-2">To see more advanced usage of pasted.sh, please refer to the <a class="underline hover:text-gray-300"href="{{ url_for('documentation') }}">Documentation</a>.</p>
     <p class="text-white my-2">This documentation covers user authentication, filenames, file management and more. All endpoints on this domain will also be covered.</p>
