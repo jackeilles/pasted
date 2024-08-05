@@ -1,5 +1,5 @@
 from werkzeug.datastructures import FileStorage
-from flask import render_template, redirect, url_for, request, flash
+from flask import render_template, redirect, url_for, request, flash, Response
 from flask_login import current_user, logout_user, login_user, login_required
 import os
 import datetime
@@ -8,7 +8,6 @@ from app.models import User
 from app.forms import LoginForm, RegistrationForm
 import magic
 import sqlalchemy as sa
-
 
 @app.route('/', methods=["GET", "POST"])
 def index():
@@ -22,22 +21,33 @@ def index():
         # We're gonna grab the form data from the request first.
         fdata = request.form
 
-        # If this try except fails then the data is inside of the form rather than a file.
-        try:
-            data: FileStorage = request.files['file']
-            data.seek(0)
-            mime: str = magic.from_buffer(data.read(1024), mime=True) # This will be needed when loading the file in browser.
-        except KeyError:
-            data: str = fdata['file'] # Just toss the stuff from the form into data instead
-            mime: str = "text/plain"
+        # Maybe check if this is a file or a url request.
+        if 'file' in fdata:
+            # If this try except fails then the data is inside of the form rather than a file.
+            try:
+                file: FileStorage = request.files['file']
+                file.seek(0)
+                mime: str = magic.from_buffer(file.read(1024), mime=True) # This will be needed when loading the file in browser.
+            except KeyError:
+                data: str = fdata['file'] # Just toss the stuff from the form into data instead
+                mime: str = "text/plain"
 
-        # We will check whether the MIME type of the file is disallowed.
+            # We will check whether the MIME type of the file is disallowed.
+            if mime in app.config['DISALLOWED_MIME_TYPES']:
+                return Response("MIME type not allowed", status=415)
+
+            # Once thats passed we need to check the Content-Length header
+            if 'Content-Length' in request.headers:
+                if int(request.headers['Content-Length']) > app.config['MAX_FILE_SIZE']:
+                    return Response("File too large", status=413)
+
+
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
+
     login_form = LoginForm()
     register_form = RegistrationForm()
 
@@ -49,10 +59,10 @@ def login():
             return redirect(url_for('login'))
         login_user(user, remember=login_form.remember.data)
         return redirect(url_for('index'))
-    
+
     if register_form.validate_on_submit():
         return redirect(url_for('index'))
-    
+
     return render_template('login.html', title='Login', login_form=login_form, register_form=register_form)
 
 # If a user wants to go to /register we should redirect them to /login
