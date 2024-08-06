@@ -3,11 +3,16 @@ from flask import render_template, redirect, url_for, request, flash, Response
 from flask_login import current_user, logout_user, login_user, login_required
 import os
 import datetime
-from app import app, db
+from app import app, db, Config
 from app.models import User
 from app.forms import LoginForm, RegistrationForm
+from models import User, Files, ShortURL
 import magic
 import sqlalchemy as sa
+import random
+import mimetypes
+import datetime
+import sys
 
 @app.route('/', methods=["GET", "POST"])
 def index():
@@ -25,23 +30,27 @@ def index():
         if 'file' in fdata:
             # If this try except fails then the data is inside of the form rather than a file.
             try:
-                file: FileStorage = request.files['file']
-                file.seek(0)
-                mime: str = magic.from_buffer(file.read(1024), mime=True) # This will be needed when loading the file in browser.
+                data = request.files['file']
+                data.seek(0)
+                mime: str = magic.from_buffer(data.read(1024), mime=True) # This will be needed when loading the file in browser.
             except KeyError:
-                data: str = fdata['file'] # Just toss the stuff from the form into data instead
+                data = fdata['file'] # Just toss the stuff from the form into data instead
                 mime: str = "text/plain"
 
-            # We will check whether the MIME type of the file is disallowed.
-            if mime in app.config['DISALLOWED_MIME_TYPES']:
-                return Response("MIME type not allowed", status=415)
-
-            # Once thats passed we need to check the Content-Length header
-            if 'Content-Length' in request.headers:
-                if int(request.headers['Content-Length']) > app.config['MAX_FILE_SIZE']:
-                    return Response("File too large", status=413)
-
-
+            # Lets upload it
+            # Get the expiry
+            expiry = Config.MIN_EXPIRE + (-Config.MAX_EXPIRE + Config.MIN_EXPIRE) * pow((sys.getsizeof(data) / Config.MAX_CONTENT_LENGTH - 1), 3)
+            # Add to db first then save to fs
+            rand = random.sample(Config.ALLOWED_CHARS, 4)
+            file = Files(
+                name=rand,
+                size=sys.getsizeof(data),
+                ext=mimetypes.guess_extension(mime),
+                mime=mime,
+                timestamp=datetime.datetime.now(),
+                expiry=expiry,
+                domain=request.host,
+                owner_id=current_user.id if current_user.is_authenticated else None)
 
 @app.route('/login', methods=["GET", "POST"])
 def login():

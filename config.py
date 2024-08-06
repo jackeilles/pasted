@@ -31,6 +31,9 @@ class Config:
     # Here is where we store all uploaded files.
     FILE_PATH = f'{BASEDIR}/files/'
 
+    # Allowed chars for URL ext
+    ALLOWED_CHARS = 'bcfgijklmnoqruvwxyzBCFGIJKLMNOQRUVWXYZ0123456789'
+
     # Self-explanatory, no executables, no archives.
     # Returns a 415 Unsupported Media Type if the mimetype is in this list.
     DISALLOWED_MIME_TYPES = [
