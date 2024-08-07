@@ -4,15 +4,15 @@ from flask_login import current_user, logout_user, login_user, login_required
 import os
 import datetime
 from app import app, db, Config
-from app.models import User
+from app.models import User, Files, ShortURL
 from app.forms import LoginForm, RegistrationForm
-from models import User, Files, ShortURL
 import magic
 import sqlalchemy as sa
 import random
 import mimetypes
 import datetime
 import sys
+from io import BytesIO
 
 @app.route('/', methods=["GET", "POST"])
 def index():
@@ -23,18 +23,16 @@ def index():
     if request.method == "GET":
         return render_template('index.html', title='Anonymous, Private, Secure, and Temporary.', hex_rand=hex_rand, timestamp=timestamp, user="")
     elif request.method == "POST":
-        # We're gonna grab the form data from the request first.
-        fdata = request.form
 
         # Maybe check if this is a file or a url request.
-        if 'file' in fdata:
+        if request.form.get('file') or request.files['file'] is not None:
             # If this try except fails then the data is inside of the form rather than a file.
             try:
                 data = request.files['file']
                 data.seek(0)
                 mime: str = magic.from_buffer(data.read(1024), mime=True) # This will be needed when loading the file in browser.
             except KeyError:
-                data = fdata['file'] # Just toss the stuff from the form into data instead
+                data = FileStorage(BytesIO(request.form.get('file').encode("UTF-8"))) # Just toss the stuff from the form into data instead
                 mime: str = "text/plain"
 
             # Lets upload it
@@ -50,7 +48,43 @@ def index():
                 timestamp=datetime.datetime.now(),
                 expiry=expiry,
                 domain=request.host,
-                owner_id=current_user.id if current_user.is_authenticated else None)
+                owner_id=current_user.id if current_user.is_authenticated else None
+                )
+
+            # Save data to storage
+            data.save(f'{Config.BASEDIR}/{rand}.{mimetypes.guess_extension(mime)}')
+
+            # Finalise DB Writing
+            try:
+                db.session.add(file)
+                db.session.commit()
+                return "https://" + request.host + "/" + rand + "." + mimetypes.guess_extension(mime)
+            except Exception as e:
+                db.session.rollback() 
+                print(e)
+                return Response("Internal Server Error, please try again or contact admin if urgent.", status=500)        
+        elif 'url' in fdata:
+            return "not complete"
+        else:
+            return Response("Invalid request", status=400)    
+
+@app.route('/<file>')
+def file(file):
+
+    # Get the file from the database
+    file = db.session.scalar(sa.select(Files).where(Files.name == file))
+
+    # Check if the file exists
+    if file is None:
+        return Response("File not found", status=404)
+
+    # Check if the file is expired
+    if file.expiry < datetime.datetime.now():
+        return Response("File has expired", status=410)
+
+    # Open the file
+    with open(f'{Config.BASEDIR}/{file.name}.{file.ext}', 'rb') as f:
+        return Response(f.read(), mimetype=file.mime)
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
