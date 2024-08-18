@@ -1,0 +1,10 @@
+[Unit]
+Description=pasted.sh cleanup service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/path/to/cleanup.py
