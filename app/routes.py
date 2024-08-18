@@ -1,5 +1,5 @@
 from werkzeug.datastructures import FileStorage
-from flask import render_template, redirect, url_for, request, flash, Response
+from flask import render_template, redirect, url_for, request, flash, Response, make_response
 from flask_login import current_user, logout_user, login_user, login_required
 import os
 import datetime
@@ -10,81 +10,147 @@ import magic
 import sqlalchemy as sa
 import random
 import mimetypes
-import datetime
+import time
 import sys
 from io import BytesIO
 
 @app.route('/', methods=["GET", "POST"])
 def index():
-    # Initial data for the index page
-    hex_rand: str = os.urandom(15).hex()
-    timestamp: int = int(datetime.datetime.now().timestamp())
-
     if request.method == "GET":
+        # Initial data for the index page
+        hex_rand: str = os.urandom(15).hex()
+        timestamp: int = int(datetime.datetime.now().timestamp())
         return render_template('index.html', title='Anonymous, Private, Secure, and Temporary.', hex_rand=hex_rand, timestamp=timestamp, user="")
-    elif request.method == "POST":
 
+    elif request.method == "POST":
         # Maybe check if this is a file or a url request.
         if request.form.get('file') or request.files['file'] is not None:
             # If this try except fails then the data is inside of the form rather than a file.
             try:
                 data = request.files['file']
-                data.seek(0)
                 mime: str = magic.from_buffer(data.read(1024), mime=True) # This will be needed when loading the file in browser.
-            except KeyError:
+                data.seek(0)
+            except KeyError: # If its not a file, then itll just be a string.
                 data = FileStorage(BytesIO(request.form.get('file').encode("UTF-8"))) # Just toss the stuff from the form into data instead
                 mime: str = "text/plain"
 
-            # Lets upload it
-            # Get the expiry
-            expiry = Config.MIN_EXPIRE + (-Config.MAX_EXPIRE + Config.MIN_EXPIRE) * pow((sys.getsizeof(data) / Config.MAX_CONTENT_LENGTH - 1), 3)
-            # Add to db first then save to fs
-            rand = random.sample(Config.ALLOWED_CHARS, 4)
+            # Are we authenticated or not? Check current_user or fields from ther request
+            if current_user.is_authenticated:
+                owner_id = current_user.id
+            elif request.form.get('user') and request.form.get('pass'):
+                # Perform checks to see if this is the correct information
+                user = User.query.filter_by(username=request.form.get('user')).first()
+                if user is None or not user.pass_check(request.form.get('pass')):
+                    return Response(f"[{request.host}] Invalid Credentials", status=401)
+                owner_id = user.id # We can safely say the user is authenticated now.
+            else:
+                owner_id = None # User is unauthenticated, no probs.
+
+            # We'll nab the filesize
+            data.seek(0, os.SEEK_END)
+            size = round(float(data.tell()) / (1024 * 1024), 2)
+            size = request.content_length
+            data.seek(0)
+
+            timestamp = time.time()
+
+            # We'll also calculate retention for later
+            retention = round(Config.MIN_EXPIRE + (-Config.MAX_EXPIRE + Config.MIN_EXPIRE) * pow((size / Config.MAX_CONTENT_LENGTH - 1), 3))
+
+            # Lets get the expiry time
+            if request.form.get('expiry'):
+                # Check if provided expiry is more than calculated, if not, then we can use the provided one
+                expiry = round(int(request.form.get('expiry')) + timestamp) if round(int(request.form.get('expiry')) + timestamp) < retention + timestamp else retention + timestamp
+            else:
+                # We calculate it from the file size in this instance
+                expiry = retention + timestamp
+
+            # See if a name was given for the file, if not then just generate a random one
+            if request.form.get('name'):
+                # Check if the name already exists
+                if Files.query.filter_by(name=request.form.get('name')).first() is not None:
+                    return Response(f"[{request.host}] Name already exists, please choose another.\n", status=409)
+                name = request.form.get('name')
+            else:
+                name = ''.join(random.sample(Config.ALLOWED_CHARS, 4))
+            hex_rand = os.urandom(15).hex()
+
             file = Files(
-                name=rand,
+                name=name,
                 size=sys.getsizeof(data),
                 ext=mimetypes.guess_extension(mime),
                 mime=mime,
-                timestamp=datetime.datetime.now(),
+                timestamp=timestamp,
+                mgmt=hex_rand,
                 expiry=expiry,
                 domain=request.host,
-                owner_id=current_user.id if current_user.is_authenticated else None
+                owner_id=owner_id
                 )
 
             # Save data to storage
-            data.save(f'{Config.BASEDIR}/{rand}.{mimetypes.guess_extension(mime)}')
+            data.save(f'{Config.BASEDIR}/{name}.{mimetypes.guess_extension(mime)}')
 
             # Finalise DB Writing
             try:
                 db.session.add(file)
                 db.session.commit()
-                return "https://" + request.host + "/" + rand + "." + mimetypes.guess_extension(mime)
+
+                response = make_response(f"http://{request.host}/{name}{mimetypes.guess_extension(mime)}\n")
+                response.headers["X-Expires"] = expiry
+                response.headers["X-Token"] = hex_rand
+                return response
+
             except Exception as e:
-                db.session.rollback() 
+                db.session.rollback()
                 print(e)
-                return Response("Internal Server Error, please try again or contact admin if urgent.", status=500)        
-        elif 'url' in fdata:
+                return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
+        elif request.form.get('url'):
             return "not complete"
         else:
-            return Response("Invalid request", status=400)    
+            return Response(f"[{request.host}] Invalid request\n", status=400)
 
-@app.route('/<file>')
-def file(file):
+@app.route('/<id>.<ext>')
+def file(id, ext):
 
     # Get the file from the database
-    file = db.session.scalar(sa.select(Files).where(Files.name == file))
+    file = db.session.scalar(sa.select(Files).where(Files.name == id and Files.ext == ext))
 
     # Check if the file exists
     if file is None:
-        return Response("File not found", status=404)
-
-    # Check if the file is expired
-    if file.expiry < datetime.datetime.now():
-        return Response("File has expired", status=410)
+        return Response(f"[{request.host}] File not found\n", status=404)
 
     # Open the file
     with open(f'{Config.BASEDIR}/{file.name}.{file.ext}', 'rb') as f:
         return Response(f.read(), mimetype=file.mime)
+
+@app.route('/<id>.<ext>/delete', methods=["POST"])
+def delete(id, ext):
+
+    # Check if mgmt token is provided
+    token = request.form.get("token")
+    if token is None:
+        return Response("No token provided", status=400)
+
+    # Lets look for the db entry
+    file = db.session.scalar(sa.select(Files).where(Files.name == id and Files.ext == ext))
+    if file is None:
+        return Response(f"[{request.host}] File not found\n", status=404)
+
+    # Does the token match what is in the db?
+    if file.mgmt != token:
+        return Response(f"[{request.host}] Invalid Token\n", status=403)
+
+    # Delete the file
+    # I'll do db first
+    try:
+        db.session.delete(file)
+        os.remove(f'{Config.BASEDIR}/{file.name}.{file.ext}')
+        db.session.commit()
+        return Response(f"[{request.host}] File deleted\n", status=200)
+    except Exception as e:
+        db.session.rollback()
+        print(e)
+        return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
 
 @app.route('/login', methods=["GET", "POST"])
 def login():

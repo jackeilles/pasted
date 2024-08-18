@@ -10,28 +10,29 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String, index=True, unique=True)
     pass_h = db.Column(db.String)
     banned = db.Column(db.Boolean)
-    ban_end = db.Column(db.DateTime)
-    created = db.Column(db.DateTime)
-    last_used = db.Column(db.DateTime)
+    ban_end = db.Column(db.Integer)
+    created = db.Column(db.Integer)
+    last_used = db.Column(db.Integer)
     level = db.Column(db.Integer) # 1 = User, 2 = Paid, 3 = Root
 
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<User {self.user}>'
 
     def pass_set(self, password: str) -> None:
-        self.password_hash = generate_password_hash(password)
+        self.pass_h = generate_password_hash(password)
 
     def pass_check(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
+        return check_password_hash(self.pass_h, password)
 
 class Files(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, index=True, unique=True)
     size = db.Column(db.Integer)
-    ext = db.Column(db.String, index=True, unique=True) # If not specified, it will be the same as name.
+    ext = db.Column(db.String, index=True) # If not specified, it will be the same as name.
     mime = db.Column(db.String, index=True)
-    timestamp = db.Column(db.DateTime)
-    expiry = db.Column(db.DateTime)
+    mgmt = db.Column(db.String)
+    timestamp = db.Column(db.Integer)
+    expiry = db.Column(db.Integer)
     domain = db.Column(db.String, index=True)
     deleted = db.Column(db.Boolean, default=False)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -67,7 +68,7 @@ class Files(db.Model):
             db.session.rollback()
             return f"Error: {e}"
 
-    def ban_owner(self, end: Optional[datetime.datetime] = None) -> str:
+    def ban_owner(self, end = None) -> str:
         """
         Bans the owner of the file.
         To be used in the event of a bad file being uploaded.
@@ -85,8 +86,9 @@ class ShortURL(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     url = db.Column(db.String, index=True, unique=True)
     ext = db.Column(db.String, index=True, unique=True)
-    timestamp = db.Column(db.DateTime)
-    expiry = db.Column(db.DateTime)
+    timestamp = db.Column(db.Integer)
+    mgmt = db.Column(db.String)
+    expiry = db.Column(db.Integer)
     domain = db.Column(db.String, index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
@@ -105,7 +107,7 @@ class ShortURL(db.Model):
             db.session.rollback()
             return f"Error: {e}"
 
-    def ban_owner(self, end: Optional[datetime.datetime] = None) -> str:
+    def ban_owner(self, end = None) -> str:
         """
         Bans the owner of the short url.
         To be used in the event of a bad short url being created.

@@ -22,8 +22,8 @@ class Config:
     MAX_FILE_NAME = 64
 
     # Min and Max time before a URL expires in milliseconds
-    MIN_EXPIRE = 28 * 24 * 60 * 60 * 1000 # days first, everything else is hour, min, sec and calc
-    MAX_EXPIRE = 365 * 24 * 60 * 60 * 1000
+    MIN_EXPIRE = 7 * 24 * 60 * 60 # days first, everything else is hour, min, sec
+    MAX_EXPIRE = 365 * 24 * 60 * 60
 
     # Which domains do we actually own? They're all listed here!
     VALID_SERVER_NAME = ["pasted.sh"]
@@ -72,12 +72,5 @@ class Config:
                             'application/vnd.microsoft.portable-executable',
                             'application/x-bat',
                             'application/x-sh',
-                            'message/rfc822',
                             'application/x-mimearchive',
-                            'application/vnd.ms-excel',
-                            'application/vnd.ms-powerpoint',
-                            'application/msword',
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            'application/vnd.openxmlformats-officedocument.presentationml.presentation'
                             ]
