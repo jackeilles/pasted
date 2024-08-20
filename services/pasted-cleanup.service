@@ -7,4 +7,4 @@ StartLimitIntervalSec=0
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/path/to/cleanup.py
+ExecStart=/usr/share/pasted/cleanup.py

@@ -13,7 +13,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or f'sqlite:///{BASEDIR}/pasted.db'
 
     # How large the content can be before it is rejected with a 413 Content Too Large.
-    MAX_CONTENT_LENGTH = 256 * 1024 * 1024
+    MAX_CONTENT_LENGTH = 512 * 1024 * 1024
 
     # How long a URL to shorten can be before its flat out rejected with a 414 (who's got urls at 2048 chars anyway???)
     MAX_URL_LEN = 2048
@@ -26,7 +26,7 @@ class Config:
     MAX_EXPIRE = 365 * 24 * 60 * 60
 
     # Which domains do we actually own? They're all listed here!
-    VALID_SERVER_NAME = ["pasted.sh"]
+    VALID_SERVER_NAME = ["https://pasted.sh", "https://xygt.cc", "http://localhost:5000"]
 
     # Here is where we store all uploaded files.
     FILE_PATH = f'{BASEDIR}/files/'

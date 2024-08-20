@@ -3,7 +3,7 @@ from flask import render_template, redirect, url_for, request, flash, Response, 
 from flask_login import current_user, logout_user, login_user, login_required
 import os
 import datetime
-from app import app, db, Config
+from app import app, db, Config, csrf
 from app.models import User, Files, ShortURL
 from app.forms import LoginForm, RegistrationForm
 import magic
@@ -14,8 +14,13 @@ import time
 import sys
 from io import BytesIO
 
+@csrf.exempt
 @app.route('/', methods=["GET", "POST"])
 def index():
+    """General base for everything in the site.
+    """
+
+
     if request.method == "GET":
         # Initial data for the index page
         hex_rand: str = os.urandom(15).hex()
@@ -51,6 +56,18 @@ def index():
             size = round(float(data.tell()) / (1024 * 1024), 2)
             size = request.content_length
             data.seek(0)
+
+            # Get the user level of the person who owns the file
+            if owner_id is not None:
+                user = User.query.filter_by(id=owner_id).first()
+                if user is not None:
+                    user_level = user.level
+                else:
+                    user_level = 1
+
+            # Check if the file is too large (for free users)
+            if size > 256 * 1024 * 1024 and user_level < 2:
+                return Response(f"[{request.host}] File too large\n", status=413)
 
             timestamp = time.time()
 
@@ -110,7 +127,14 @@ def index():
             return Response(f"[{request.host}] Invalid request\n", status=400)
 
 @app.route('/<id>.<ext>')
-def file(id, ext):
+def load(id, ext):
+    """Handles the loading of everything in the app
+
+    Args:
+        id (str): The ID of the file you want to load.
+        ext (str): The file extension.
+
+    """
 
     # Get the file from the database
     file = db.session.scalar(sa.select(Files).where(Files.name == id and Files.ext == ext))
@@ -125,6 +149,13 @@ def file(id, ext):
 
 @app.route('/<id>.<ext>/delete', methods=["POST"])
 def delete(id, ext):
+    """Handles the deletion of files.
+
+    Args:
+        id (str): The ID of the file you want to delete.
+        ext (str): The file extension.
+
+    """
 
     # Check if mgmt token is provided
     token = request.form.get("token")
@@ -151,38 +182,10 @@ def delete(id, ext):
         db.session.rollback()
         print(e)
         return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
-
+    
 @app.route('/login', methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
-
-    login_form = LoginForm()
-    register_form = RegistrationForm()
-
-    if login_form.validate_on_submit():
-        user = db.session.scalar(
-            sa.select(User).where(User.username == login_form.username.data))
-        if user is None or not user.pass_check(login_form.password.data):
-            flash('Invalid username or password')
-            return redirect(url_for('login'))
-        login_user(user, remember=login_form.remember.data)
-        return redirect(url_for('index'))
-
-    if register_form.validate_on_submit():
-        return redirect(url_for('index'))
-
-    return render_template('login.html', title='Login', login_form=login_form, register_form=register_form)
-
-# If a user wants to go to /register we should redirect them to /login
-@app.route('/register')
-def register():
-    return redirect(url_for('login'))
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
+    return "placeholder"
 
 @app.route('/documentation')
 def documentation():
