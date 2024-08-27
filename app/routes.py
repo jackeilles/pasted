@@ -20,7 +20,6 @@ def index():
     """General base for everything in the site.
     """
 
-
     if request.method == "GET":
         # Initial data for the index page
         hex_rand: str = os.urandom(15).hex()
@@ -183,6 +182,17 @@ def delete(id, ext):
         print(e)
         return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
     
+@app.route('/upload', methods=["GET", "POST"])
+def upload():
+    """
+    Route for the front-end uplaod page.
+    """
+    
+    if request.method == "POST":
+        return Response(f"[{request.host}] This is not an endpoint for terminal uploads, this is used for front-end uploading.\n", status=405)
+    else:
+        return render_template('upload.html', title='Upload', user="")
+   
 @app.route('/login', methods=["GET", "POST"])
 def login():
     return "placeholder"
