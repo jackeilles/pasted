@@ -11,15 +11,26 @@
     <title>pasted.sh - {{ title }}</title>
 </head>
 <body class="bg-[#343a40]">
-    <div class="w-full max-w-screen-md mx-auto p-4 mb-8">
-        <img class="mx-auto bg-[#212529] px-8 m-4 rounded-lg" src="{{ url_for('static', filename='img/pastedlogo.png') }}" alt="pasted.sh logo" width="500">
-        <h1 class="text-center text-2xl text-white">An anonymous, private, secure, and temporary pastebin and file-hosting service.</h1>
-        {% if user.is_authenticated %}
-        <p class="text-white my-2">Welcome, <a class="bg-slate-700" href="{{ url_for('profile') }}">{{ user.username }}</a>.</p>
-        {% else %}
-        <a href="{{ url_for('login') }}" class="block w-full max-w-[192px] text-center mx-auto mt-8 bg-[#007bff] hover:bg-[#0056b3] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Login / Register</a>
-        {% endif %}
-    </div>
+    <nav class="w-full max-w-screen-lg mx-auto p-4 mb-8 flex items-center justify-between">
+        <a href="{{ url_for('index') }}">
+            <img class="bg-[#212529] px-8 py-2 rounded-lg" src="{{ url_for('static', filename='img/pastedlogo.png') }}" alt="pasted.sh logo" width="256">
+        </a>
+        <div class="flex items-center space-x-4"> <!-- Flex container for links -->
+            {% if user.is_authenticated %}
+            <p class="text-white my-2">
+                Welcome, <a class="bg-slate-700 px-2 py-1 rounded" href="{{ url_for('profile') }}">{{ user.username }}</a>.
+            </p>
+            {% else %}
+            <a href="{{ url_for('login') }}" class="text-center bg-[#007bff] hover:bg-[#0056b3] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Login / Register
+            </a>
+            {% endif %}
+            <a href="{{ url_for('paste') }}" class="text-center bg-[#007bff] hover:bg-[#0056b3] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Upload
+            </a>
+        </div>
+    </nav>
+      
     {% block content %}{% endblock %}
 </body>
 </html>

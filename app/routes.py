@@ -24,7 +24,7 @@ def index():
         # Initial data for the index page
         hex_rand: str = os.urandom(15).hex()
         timestamp: int = int(datetime.datetime.now().timestamp())
-        return render_template('index.html', title='Anonymous, Private, Secure, and Temporary.', hex_rand=hex_rand, timestamp=timestamp, user="")
+        return render_template('index.html', title='Anonymous, Private, Secure, and Temporary.', hex_rand=hex_rand, timestamp=timestamp, user="", description=True)
 
     elif request.method == "POST":
         # Maybe check if this is a file or a url request.
@@ -182,8 +182,8 @@ def delete(id, ext):
         print(e)
         return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
     
-@app.route('/upload', methods=["GET", "POST"])
-def upload():
+@app.route('/paste', methods=["GET", "POST"])
+def paste():
     """
     Route for the front-end uplaod page.
     """
@@ -191,7 +191,7 @@ def upload():
     if request.method == "POST":
         return Response(f"[{request.host}] This is not an endpoint for terminal uploads, this is used for front-end uploading.\n", status=405)
     else:
-        return render_template('upload.html', title='Upload', user="")
+        return render_template('paste.html', title='Upload', user="")
    
 @app.route('/login', methods=["GET", "POST"])
 def login():
