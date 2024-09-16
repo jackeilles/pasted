@@ -14,12 +14,11 @@ import time
 import sys
 from io import BytesIO
 
-@csrf.exempt
+@csrf.exempt # For cURL
 @app.route('/', methods=["GET", "POST"])
 def index():
     """General base for everything in the site.
     """
-
     if request.method == "GET":
         # Initial data for the index page
         hex_rand: str = os.urandom(15).hex()
@@ -121,7 +120,28 @@ def index():
                 print(e)
                 return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
         elif request.form.get('url'):
-            return "not complete"
+            data = request.form.get('url')
+
+            # Are we authenticated or not? Check current_user or fields from ther request
+            if current_user.is_authenticated:
+                owner_id = current_user.id
+            elif request.form.get('user') and request.form.get('pass'):
+                # Perform checks to see if this is the correct information
+                user = User.query.filter_by(username=request.form.get('user')).first()
+                if user is None or not user.pass_check(request.form.get('pass')):
+                    return Response(f"[{request.host}] Invalid Credentials", status=401)
+                owner_id = user.id # We can safely say the user is authenticated now.
+            else:
+                owner_id = None # User is unauthenticated, no probs.
+
+            # Get the user level of the person who owns the file
+            if owner_id is not None:
+                user = User.query.filter_by(id=owner_id).first()
+                if user is not None:
+                    user_level = user.level
+                else:
+                    user_level = 1
+
         else:
             return Response(f"[{request.host}] Invalid request\n", status=400)
 
