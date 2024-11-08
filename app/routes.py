@@ -14,7 +14,6 @@ import time
 import sys
 from io import BytesIO
 
-@csrf.exempt # For cURL
 @app.route('/', methods=["GET", "POST"])
 def index():
     """General base for everything in the site.
@@ -144,6 +143,143 @@ def index():
 
         else:
             return Response(f"[{request.host}] Invalid request\n", status=400)
+
+@app.route('/api', methods=["GET", "POST"])
+def api():
+    if request.method == "GET":
+        return Response(f"[{request.host}] No API version specified.\n", status=400)
+    elif request.method == "POST":
+        return Response(f"[{request.host}] This is not an endpoint for terminal uploads.\n", status=405)
+
+@app.route('/api/v1', methods=["GET", "POST"])
+def api_v1():
+    if request.method == "GET":
+        return Response(f"[{request.host}] No API call specified.\n", status=400)
+    elif request.method == "POST":
+        return Response(f"[{request.host}] This is not an endpoint for terminal uploads.\n", status=405)
+
+@app.route('/api/v1/status', methods=["GET"])
+def status():
+    return Response(f"[{request.host}] Alive\n", status=200)
+
+@app.route('/api/v1/upload', methods=["POST"])
+def upload():
+    # Maybe check if this is a file or a url request.
+    if request.form.get('file') or request.files['file'] is not None:
+        # If this try except fails then the data is inside of the form rather than a file.
+        try:
+            data = request.files['file']
+            mime: str = magic.from_buffer(data.read(1024), mime=True) # This will be needed when loading the file in browser.
+            data.seek(0)
+        except KeyError: # If its not a file, then itll just be a string.
+            data = FileStorage(BytesIO(request.form.get('file').encode("UTF-8"))) # Just toss the stuff from the form into data instead
+            mime: str = "text/plain"
+
+        # Are we authenticated or not? Check current_user or fields from ther request
+        if request.form.get('user') and request.form.get('pass'):
+            # Perform checks to see if this is the correct information
+            user = User.query.filter_by(username=request.form.get('user')).first()
+            if user is None or not user.pass_check(request.form.get('pass')):
+                return Response(f"[{request.host}] Invalid Credentials", status=401)
+            owner_id = user.id # We can safely say the user is authenticated now.
+        else:
+            owner_id = None # User is unauthenticated, no probs.
+
+        # We'll nab the filesize
+        data.seek(0, os.SEEK_END)
+        size = round(float(data.tell()) / (1024 * 1024), 2)
+        size = request.content_length
+        data.seek(0)
+
+        # Get the user level of the person who owns the file
+        if owner_id is not None:
+            user = User.query.filter_by(id=owner_id).first()
+            if user is not None:
+                user_level = user.level
+            else:
+                user_level = 1
+
+        # Check if the file is too large (for free users)
+        if size > 256 * 1024 * 1024 and user_level < 2:
+            return Response(f"[{request.host}] File too large\n", status=413)
+
+        timestamp = time.time()
+
+        # We'll also calculate retention for later
+        retention = round(Config.MIN_EXPIRE + (-Config.MAX_EXPIRE + Config.MIN_EXPIRE) * pow((size / Config.MAX_CONTENT_LENGTH - 1), 3))
+
+        # Lets get the expiry time
+        if request.form.get('expiry'):
+            # Check if provided expiry is more than calculated, if not, then we can use the provided one
+            expiry = round(int(request.form.get('expiry')) + timestamp) if round(int(request.form.get('expiry')) + timestamp) < retention + timestamp else retention + timestamp
+        else:
+            # We calculate it from the file size in this instance
+            expiry = retention + timestamp
+
+        # See if a name was given for the file, if not then just generate a random one
+        if request.form.get('name'):
+            # Check if the name already exists
+            if Files.query.filter_by(name=request.form.get('name')).first() is not None:
+                return Response(f"[{request.host}] Name already exists, please choose another.\n", status=409)
+            name = request.form.get('name')
+        else:
+            name = ''.join(random.sample(Config.ALLOWED_CHARS, 4))
+        hex_rand = os.urandom(15).hex()
+
+        file = Files(
+            name=name,
+            size=sys.getsizeof(data),
+            ext=mimetypes.guess_extension(mime),
+            mime=mime,
+            timestamp=timestamp,
+            mgmt=hex_rand,
+            expiry=expiry,
+            domain=request.host,
+            owner_id=owner_id
+            )
+
+        # Save data to storage
+        data.save(f'{Config.BASEDIR}/{name}.{mimetypes.guess_extension(mime)}')
+
+        # Finalise DB Writing
+        try:
+            db.session.add(file)
+            db.session.commit()
+
+            response = make_response(f"http://{request.host}/{name}{mimetypes.guess_extension(mime)}\n")
+            response.headers["X-Expires"] = expiry
+            response.headers["X-Token"] = hex_rand
+            return response
+
+        except Exception as e:
+            db.session.rollback()
+            print(e)
+            return Response(f"[{request.host}] Internal Server Error, please try again or contact admin if urgent.\n", status=500)
+    elif request.form.get('url'):
+        data = request.form.get('url')
+
+        # Are we authenticated or not? Check current_user or fields from ther request
+        if current_user.is_authenticated:
+            owner_id = current_user.id
+        elif request.form.get('user') and request.form.get('pass'):
+            # Perform checks to see if this is the correct information
+            user = User.query.filter_by(username=request.form.get('user')).first()
+            if user is None or not user.pass_check(request.form.get('pass')):
+                return Response(f"[{request.host}] Invalid Credentials", status=401)
+            owner_id = user.id # We can safely say the user is authenticated now.
+        else:
+            owner_id = None # User is unauthenticated, no probs.
+
+        # Get the user level of the person who owns the file
+        if owner_id is not None:
+            user = User.query.filter_by(id=owner_id).first()
+            if user is not None:
+                user_level = user.level
+            else:
+                user_level = 1
+
+    else:
+        return Response(f"[{request.host}] Invalid request\n", status=400)
 
 @app.route('/<id>.<ext>')
 def load(id, ext):
